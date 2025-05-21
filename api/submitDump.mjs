@@ -1,5 +1,5 @@
 import { db } from '../firebase.mjs';
-import runPromptChain from '../runPromptChain.mjs';
+import runPromptChain from '../lib/runPromptChain.mjs';
 import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
 export default async function submitDump(req, res) {
