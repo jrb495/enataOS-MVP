@@ -3,30 +3,33 @@ import runPromptChain from '../lib/runPromptChain.mjs';
 import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
 export default async function submitDump(req, res) {
-  const { account_id, dump } = req.body;
+  const { accountId, dump } = req.body;
+  if (!accountId || !dump) {
+    return res.status(400).json({ error: 'Missing accountId or dump' });
+  }
   const createdAt = new Date();
 
   try {
     // Write raw dump
     const dumpRef = await db.collection('dumps').add({
-      account_id,
+      account_id: accountId,
       dump,
       created_at: createdAt,
     });
     console.log(`Dump written with ID: ${dumpRef.id}`);
 
     // Run prompt chain to process dump
-    const rawResult = await runPromptChain(dump, account_id);
+    const rawResult = await runPromptChain(dump, accountId);
     const result = { ...FALLBACK_RESULT, ...rawResult };
 
     // Persist interaction data
     const interactionData = {
-      account_id,
-      trust_delta: result.trust_delta,
-      momentum_delta: result.momentum_delta,
-      loyalty_delta: result.loyalty_delta,
-      justification: result.justification,
-      summary: result.summary,
+      account_id: accountId,
+      trust_delta: result.trust_delta ?? 0,
+      momentum_delta: result.momentum_delta ?? 0,
+      loyalty_delta: result.loyalty_delta ?? 0,
+      justification: result.justification ?? '',
+      summary: result.summary ?? '',
       created_at: createdAt,
     };
     const interactionRef = await db.collection('interactions').add(interactionData);
@@ -38,7 +41,7 @@ export default async function submitDump(req, res) {
       result.recommended_actions.forEach((action) => {
         const ref = db.collection('next_steps').doc();
         batch.set(ref, {
-          account_id,
+          account_id: accountId,
           action,
           created_at: createdAt,
         });
@@ -48,7 +51,7 @@ export default async function submitDump(req, res) {
     }
 
     // Update account scores
-    const accountRef = db.collection('accounts').doc(account_id);
+    const accountRef = db.collection('accounts').doc(accountId);
     await db.runTransaction(async (t) => {
       const doc = await t.get(accountRef);
       const scores = {
@@ -62,10 +65,10 @@ export default async function submitDump(req, res) {
         scores.momentum += data.momentum || 0;
         scores.loyalty += data.loyalty || 0;
         t.update(accountRef, scores);
-        console.log(`Updated account ${account_id}`, scores);
+        console.log(`Updated account ${accountId}`, scores);
       } else {
         t.set(accountRef, scores);
-        console.log(`Created account ${account_id}`, scores);
+        console.log(`Created account ${accountId}`, scores);
       }
     });
 
