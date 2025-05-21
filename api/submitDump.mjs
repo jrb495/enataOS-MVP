@@ -3,31 +3,28 @@ import { db } from '../firebase.mjs';
 import runPromptChain from '../lib/runPromptChain.mjs';
 import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
-const router = Router();
-
-router.post('/submit-dump', async (req, res) => {
-  const { dump } = req.body;
-  const accountId = req.body.accountId || req.body.account_id;
-
-  if (!accountId || !dump) {
+export default async function submitDump(req, res) {
+  const { accountId, account_id, dump } = req.body;
+  const id = accountId || account_id;
+  if (!id || !dump) {
     return res.status(400).json({ error: 'Missing accountId or dump' });
   }
-
   const createdAt = new Date();
 
   try {
     const dumpRef = await db.collection('dumps').add({
-      accountId,
+      account_id: id,
       dump,
       created_at: createdAt,
     });
     console.log(`Dump written with ID: ${dumpRef.id}`);
 
-    const rawResult = await runPromptChain(dump, accountId);
+    // Run prompt chain to process dump
+    const rawResult = await runPromptChain(dump, id);
     const result = { ...FALLBACK_RESULT, ...rawResult };
 
     const interactionData = {
-      accountId,
+      account_id: id,
       trust_delta: result.trust_delta ?? 0,
       momentum_delta: result.momentum_delta ?? 0,
       loyalty_delta: result.loyalty_delta ?? 0,
@@ -43,7 +40,7 @@ router.post('/submit-dump', async (req, res) => {
       result.recommended_actions.forEach((action) => {
         const ref = db.collection('next_steps').doc();
         batch.set(ref, {
-          accountId,
+          account_id: id,
           action,
           created_at: createdAt,
         });
@@ -52,7 +49,8 @@ router.post('/submit-dump', async (req, res) => {
       console.log(`Next steps saved: ${result.recommended_actions.length}`);
     }
 
-    const accountRef = db.collection('accounts').doc(accountId);
+    // Update account scores
+    const accountRef = db.collection('accounts').doc(id);
     await db.runTransaction(async (t) => {
       const doc = await t.get(accountRef);
       const scores = {
@@ -66,10 +64,10 @@ router.post('/submit-dump', async (req, res) => {
         scores.momentum += data.momentum || 0;
         scores.loyalty += data.loyalty || 0;
         t.update(accountRef, scores);
-        console.log(`Updated account ${accountId}`, scores);
+        console.log(`Updated account ${id}`, scores);
       } else {
         t.set(accountRef, scores);
-        console.log(`Created account ${accountId}`, scores);
+        console.log(`Created account ${id}`, scores);
       }
     });
 
