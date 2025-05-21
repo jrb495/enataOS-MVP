@@ -1,18 +1,25 @@
+import { Router } from 'express';
 import { db } from '../firebase.mjs';
 import runPromptChain from '../lib/runPromptChain.mjs';
 import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
-export default async function submitDump(req, res) {
-  const { accountId, dump } = req.body;
+const router = Router();
+
+// Accept both camelCase and snake_case account id fields for backwards compat
+router.post('/submit-dump', async (req, res) => {
+  const { dump } = req.body;
+  const accountId = req.body.accountId || req.body.account_id;
+
   if (!accountId || !dump) {
     return res.status(400).json({ error: 'Missing accountId or dump' });
   }
+
   const createdAt = new Date();
 
   try {
     // Write raw dump
     const dumpRef = await db.collection('dumps').add({
-      account_id: accountId,
+      accountId,
       dump,
       created_at: createdAt,
     });
@@ -24,7 +31,7 @@ export default async function submitDump(req, res) {
 
     // Persist interaction data
     const interactionData = {
-      account_id: accountId,
+      accountId,
       trust_delta: result.trust_delta ?? 0,
       momentum_delta: result.momentum_delta ?? 0,
       loyalty_delta: result.loyalty_delta ?? 0,
@@ -41,7 +48,7 @@ export default async function submitDump(req, res) {
       result.recommended_actions.forEach((action) => {
         const ref = db.collection('next_steps').doc();
         batch.set(ref, {
-          account_id: accountId,
+          accountId,
           action,
           created_at: createdAt,
         });
@@ -77,5 +84,8 @@ export default async function submitDump(req, res) {
     console.error('Error in submitDump:', err);
     res.status(500).json({ error: err.message });
   }
-}
+});
+
+export default router;
+
 
