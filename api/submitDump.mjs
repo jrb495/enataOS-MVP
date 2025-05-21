@@ -1,5 +1,6 @@
 import { db } from '../firebase.mjs';
 import runPromptChain from '../runPromptChain.mjs';
+import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
 export default async function submitDump(req, res) {
   const { account_id, dump } = req.body;
@@ -15,7 +16,8 @@ export default async function submitDump(req, res) {
     console.log(`Dump written with ID: ${dumpRef.id}`);
 
     // Run prompt chain to process dump
-    const result = await runPromptChain(dump, account_id);
+    const rawResult = await runPromptChain(dump, account_id);
+    const result = { ...FALLBACK_RESULT, ...rawResult };
 
     // Persist interaction data
     const interactionData = {
