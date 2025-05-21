@@ -5,7 +5,6 @@ import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
 const router = Router();
 
-// Accept both camelCase and snake_case account id fields for backwards compat
 router.post('/submit-dump', async (req, res) => {
   const { dump } = req.body;
   const accountId = req.body.accountId || req.body.account_id;
@@ -17,7 +16,6 @@ router.post('/submit-dump', async (req, res) => {
   const createdAt = new Date();
 
   try {
-    // Write raw dump
     const dumpRef = await db.collection('dumps').add({
       accountId,
       dump,
@@ -25,11 +23,9 @@ router.post('/submit-dump', async (req, res) => {
     });
     console.log(`Dump written with ID: ${dumpRef.id}`);
 
-    // Run prompt chain to process dump
     const rawResult = await runPromptChain(dump, accountId);
     const result = { ...FALLBACK_RESULT, ...rawResult };
 
-    // Persist interaction data
     const interactionData = {
       accountId,
       trust_delta: result.trust_delta ?? 0,
@@ -42,7 +38,6 @@ router.post('/submit-dump', async (req, res) => {
     const interactionRef = await db.collection('interactions').add(interactionData);
     console.log(`Interaction written with ID: ${interactionRef.id}`);
 
-    // Store recommended actions
     if (Array.isArray(result.recommended_actions)) {
       const batch = db.batch();
       result.recommended_actions.forEach((action) => {
@@ -57,7 +52,6 @@ router.post('/submit-dump', async (req, res) => {
       console.log(`Next steps saved: ${result.recommended_actions.length}`);
     }
 
-    // Update account scores
     const accountRef = db.collection('accounts').doc(accountId);
     await db.runTransaction(async (t) => {
       const doc = await t.get(accountRef);
@@ -87,5 +81,3 @@ router.post('/submit-dump', async (req, res) => {
 });
 
 export default router;
-
-
