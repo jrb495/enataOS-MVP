@@ -29,16 +29,5 @@ This repo powers the 0→1 MVP: reps speak or type unstructured brain dumps, whi
 2. Install dependencies:
    ```bash
    npm install
-
-3. Copy `.env.sample` to `.env` and fill in your OpenAI and Firebase credentials
-4. Place your `serviceAccountKey.json` in the project root (gitignored)
-5. Start the server:
-   ```bash
-   npm start
    ```
-
-The `submit-dump` endpoint accepts JSON:
-```json
-{ "dump": "The raw brain dump text" }
-```
-It will run the prompt chain stored in Firestore and return structured scores and recommendations.
+3. Codex runs `.codex/setup.sh` to install these dependencies automatically.
