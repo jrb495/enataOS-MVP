@@ -52,3 +52,11 @@ To push the local prompt to Firestore, run:
 ```bash
 node scripts/updatePrompt.mjs
 ```
+
+## Frontend (EnataOS Lite)
+
+A minimal browser interface lives in `frontend/`. To try it locally:
+
+1. Run the backend with `npm start`.
+2. Open `frontend/index.html` in your browser (or serve the folder with any static file server).
+3. Enter an account ID and paste a brain dump, then press **Submit** to see the AI‑generated summary, justification, scores and next steps.
