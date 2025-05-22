@@ -1,5 +1,5 @@
 import loadPrompt from './lib/firebasePrompts.mjs';
-import executePrompt, { FALLBACK_RESULT } from './lib/runPromptChain.mjs';
+import executePrompt from './lib/runPromptChain.mjs';
 
 /**
  * Wrapper used by the Express API.
@@ -8,7 +8,7 @@ import executePrompt, { FALLBACK_RESULT } from './lib/runPromptChain.mjs';
  *
  * @param {string} dump      Raw rep dump text
  * @param {string} accountId Account identifier (currently unused in prompt)
- * @returns {Promise<Object>} Structured JSON output from the LLM
+ * @returns {Promise<string>} Raw text from the LLM
  */
 export default async function runPromptChain(dump, accountId) {
   try {
@@ -17,6 +17,6 @@ export default async function runPromptChain(dump, accountId) {
     return await executePrompt(resolved);
   } catch (err) {
     console.error('[runPromptChain] Failed to execute prompt chain:', err);
-    return FALLBACK_RESULT;
+    return '';
   }
 }
