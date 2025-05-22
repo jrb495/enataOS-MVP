@@ -31,3 +31,24 @@ This repo powers the 0→1 MVP: reps speak or type unstructured brain dumps, whi
    npm install
    ```
 3. Codex runs `.codex/setup.sh` to install these dependencies automatically.
+
+## Debugging
+
+Use `npm run debug` to POST the included `test-dump.json` to the running server. Ensure the Firestore prompt `enata_os_base` instructs GPT‑4 to reply with a JSON object wrapped in triple backticks:
+
+```json
+{
+  "trust_delta": 0,
+  "momentum_delta": 0,
+  "loyalty_delta": 0,
+  "summary": "...",
+  "justification": "...",
+  "recommended_actions": []
+}
+```
+
+To push the local prompt to Firestore, run:
+
+```bash
+node scripts/updatePrompt.mjs
+```

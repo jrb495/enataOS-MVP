@@ -3,27 +3,27 @@ import { db } from '../firebase.mjs';
 import runPromptChain, { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
 export default async function submitDump(req, res) {
-  const { accountId, account_id, dump } = req.body;
-  const id = accountId || account_id;
-  if (!id || !dump) {
+  const { accountId, dump } = req.body;
+  if (!accountId || !dump) {
     return res.status(400).json({ error: 'Missing accountId or dump' });
   }
-
   const createdAt = new Date();
 
   try {
     const dumpRef = await db.collection('dumps').add({
-      account_id: id,
+      account_id: accountId,
       dump,
       created_at: createdAt,
     });
     console.log(`Dump written with ID: ${dumpRef.id}`);
 
-    const rawResult = await runPromptChain(dump, id);
+    // Run prompt chain to process dump
+    const rawResult = await runPromptChain(dump, accountId);
     const result = { ...FALLBACK_RESULT, ...rawResult };
 
-    const interactionRef = await db.collection('interactions').add({
-      account_id: id,
+    // Persist interaction data
+    const interactionData = {
+      account_id: accountId,
       trust_delta: result.trust_delta ?? 0,
       momentum_delta: result.momentum_delta ?? 0,
       loyalty_delta: result.loyalty_delta ?? 0,
@@ -38,7 +38,7 @@ export default async function submitDump(req, res) {
       result.recommended_actions.forEach((action) => {
         const ref = db.collection('next_steps').doc();
         batch.set(ref, {
-          account_id: id,
+          account_id: accountId,
           action,
           created_at: createdAt,
         });
@@ -48,7 +48,7 @@ export default async function submitDump(req, res) {
     }
 
     // Update account scores
-    const accountRef = db.collection('accounts').doc(id);
+    const accountRef = db.collection('accounts').doc(accountId);
     await db.runTransaction(async (t) => {
       const doc = await t.get(accountRef);
       const scores = {
@@ -62,10 +62,10 @@ export default async function submitDump(req, res) {
         scores.momentum += data.momentum || 0;
         scores.loyalty += data.loyalty || 0;
         t.update(accountRef, scores);
-        console.log(`Updated account ${id}`, scores);
+        console.log(`Updated account ${accountId}`, scores);
       } else {
         t.set(accountRef, scores);
-        console.log(`Created account ${id}`, scores);
+        console.log(`Created account ${accountId}`, scores);
       }
     });
 
