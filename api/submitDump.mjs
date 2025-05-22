@@ -1,7 +1,6 @@
-import { Router } from 'express';
+// submitDump.mjs
 import { db } from '../firebase.mjs';
-import runPromptChain from '../lib/runPromptChain.mjs';
-import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
+import runPromptChain, { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
 export default async function submitDump(req, res) {
   const { accountId, account_id, dump } = req.body;
@@ -9,6 +8,7 @@ export default async function submitDump(req, res) {
   if (!id || !dump) {
     return res.status(400).json({ error: 'Missing accountId or dump' });
   }
+
   const createdAt = new Date();
 
   try {
@@ -19,11 +19,10 @@ export default async function submitDump(req, res) {
     });
     console.log(`Dump written with ID: ${dumpRef.id}`);
 
-    // Run prompt chain to process dump
     const rawResult = await runPromptChain(dump, id);
     const result = { ...FALLBACK_RESULT, ...rawResult };
 
-    const interactionData = {
+    const interactionRef = await db.collection('interactions').add({
       account_id: id,
       trust_delta: result.trust_delta ?? 0,
       momentum_delta: result.momentum_delta ?? 0,
@@ -31,8 +30,7 @@ export default async function submitDump(req, res) {
       justification: result.justification ?? '',
       summary: result.summary ?? '',
       created_at: createdAt,
-    };
-    const interactionRef = await db.collection('interactions').add(interactionData);
+    });
     console.log(`Interaction written with ID: ${interactionRef.id}`);
 
     if (Array.isArray(result.recommended_actions)) {
@@ -54,9 +52,9 @@ export default async function submitDump(req, res) {
     await db.runTransaction(async (t) => {
       const doc = await t.get(accountRef);
       const scores = {
-        trust: result.trust_delta || 0,
-        momentum: result.momentum_delta || 0,
-        loyalty: result.loyalty_delta || 0,
+        trust: result.trust_delta ?? 0,
+        momentum: result.momentum_delta ?? 0,
+        loyalty: result.loyalty_delta ?? 0,
       };
       if (doc.exists) {
         const data = doc.data();
@@ -76,6 +74,4 @@ export default async function submitDump(req, res) {
     console.error('Error in submitDump:', err);
     res.status(500).json({ error: err.message });
   }
-});
-
-export default router;
+}
