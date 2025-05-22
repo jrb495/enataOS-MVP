@@ -1,6 +1,6 @@
-// submitDump.mjs
 import { db } from '../firebase.mjs';
-import runPromptChain, { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
+import runPromptChain from '../lib/runPromptChain.mjs';
+import { FALLBACK_RESULT } from '../lib/runPromptChain.mjs';
 
 export default async function submitDump(req, res) {
   const { accountId, dump } = req.body;
@@ -10,6 +10,7 @@ export default async function submitDump(req, res) {
   const createdAt = new Date();
 
   try {
+    // Write raw dump
     const dumpRef = await db.collection('dumps').add({
       account_id: accountId,
       dump,
@@ -30,9 +31,11 @@ export default async function submitDump(req, res) {
       justification: result.justification ?? '',
       summary: result.summary ?? '',
       created_at: createdAt,
-    });
+    };
+    const interactionRef = await db.collection('interactions').add(interactionData);
     console.log(`Interaction written with ID: ${interactionRef.id}`);
 
+    // Store recommended actions
     if (Array.isArray(result.recommended_actions)) {
       const batch = db.batch();
       result.recommended_actions.forEach((action) => {
@@ -52,9 +55,9 @@ export default async function submitDump(req, res) {
     await db.runTransaction(async (t) => {
       const doc = await t.get(accountRef);
       const scores = {
-        trust: result.trust_delta ?? 0,
-        momentum: result.momentum_delta ?? 0,
-        loyalty: result.loyalty_delta ?? 0,
+        trust: result.trust_delta || 0,
+        momentum: result.momentum_delta || 0,
+        loyalty: result.loyalty_delta || 0,
       };
       if (doc.exists) {
         const data = doc.data();
@@ -75,3 +78,4 @@ export default async function submitDump(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
